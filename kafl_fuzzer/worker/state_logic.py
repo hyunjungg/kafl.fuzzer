@@ -168,7 +168,7 @@ class FuzzingStateLogic:
 
     def handle_mutate(self, payload, metadata):
         try:
-            decoded_payload = payload.decode('utf-8')
+            decoded_payload = payload.decode('utf-8') # ISO-8859-1
             json_data = json.loads(decoded_payload)
         except json.JSONDecodeError as e:
             print(f"JSONDecodeError: {str(e)}")
@@ -185,7 +185,7 @@ class FuzzingStateLogic:
 
             mutated_binary = mutated.encode('utf-8')
 
-            self.execute(mutated_binary, label="import")
+            self.execute(mutated_binary, label="json mutate")
 
 
 
