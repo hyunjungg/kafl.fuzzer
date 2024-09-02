@@ -16,6 +16,8 @@ from kafl_fuzzer.technique.redqueen.mod import RedqueenInfoGatherer
 from kafl_fuzzer.technique.redqueen.workdir import RedqueenWorkdir
 from kafl_fuzzer.technique import trim, bitflip, arithmetic, interesting_values, havoc, radamsa
 from kafl_fuzzer.technique import grimoire_mutations as grimoire
+import random
+import json
 #from kafl_fuzzer.technique.trim import perform_trim, perform_center_trim, perform_extend
 #import kafl_fuzzer.technique.bitflip as bitflip
 #import kafl_fuzzer.technique.havoc as havoc
@@ -94,7 +96,7 @@ class FuzzingStateLogic:
 
     def process_node(self, payload: bytes, metadata):
         self.init_stage_info(metadata)
-        self.handle_kickstart(300,metadata)
+        self.handle_mutate(payload,metadata)
         return self.create_update({"name" : "final"}, None), None
 
     def init_stage_info(self, metadata, verbose=False):
@@ -148,6 +150,44 @@ class FuzzingStateLogic:
         # wrong or the harness is buggy.
         if not is_new:
             self.logger.debug("Imported payload produced no new coverage, skipping..")
+
+    def collect_vals(self, data, val_list):
+        if isinstance(data, dict):
+            if 'kind' in data and 'val' in data:
+                if data['kind'] == 'inptr' and isinstance(data['val'], (dict, list)):
+                    self.collect_vals(data['val'], val_list)
+                elif isinstance(data['val'], (int, str)):
+                    val_list.append(data)
+
+            for key, value in data.items():
+                if isinstance(value, (dict, list)):
+                    self.collect_vals(value, val_list)
+        elif isinstance(data, list):
+            for item in data:
+                self.collect_vals(item, val_list)
+
+    def handle_mutate(self, payload, metadata):
+        try:
+            decoded_payload = payload.decode('utf-8')
+            json_data = json.loads(decoded_payload)
+        except json.JSONDecodeError as e:
+            print(f"JSONDecodeError: {str(e)}")
+            return
+
+        val_list = []
+        self.collect_vals(json_data, val_list)
+
+        if val_list:
+            chosen_item = random.choice(val_list)
+            chosen_item['val'] = random.randint(1, 1000000)
+
+            mutated = json.dumps(json_data)
+
+            mutated_binary = mutated.encode('utf-8')
+
+            self.execute(mutated_binary, label="import")
+
+
 
     def handle_kickstart(self, kick_len, metadata):
         # random injection loop to kickstart corpus with no seeds, or to scan/test a target
