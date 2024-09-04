@@ -156,7 +156,7 @@ class FuzzingStateLogic:
             if 'kind' in data and 'val' in data:
                 if data['kind'] == 'inptr' and isinstance(data['val'], (dict, list)):
                     self.collect_vals(data['val'], val_list)
-                elif isinstance(data['val'], (int, str)):
+                elif isinstance(data['val'], (int)):
                     val_list.append(data)
 
             for key, value in data.items():
