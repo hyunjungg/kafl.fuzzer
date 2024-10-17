@@ -28,6 +28,7 @@ from kafl_fuzzer.manager.node import QueueNode
 from kafl_fuzzer.manager.statistics import WorkerStatistics
 from kafl_fuzzer.worker.state_logic import FuzzingStateLogic
 from kafl_fuzzer.worker.qemu import QemuIOException
+from kafl_fuzzer.worker.syscall_manager import SyscallManager
 from kafl_fuzzer.worker.qemu import qemu as Qemu
 from kafl_fuzzer.common.logger import WorkerLogAdapter
 
@@ -46,6 +47,12 @@ class WorkerTask:
         self.q = Qemu(self.pid, self.config)
         self.conn = ClientConnection(pid, config)
         self.statistics = WorkerStatistics(self.pid, config)
+
+        # 먼저 syscall manager를 초기화
+        self.syscall_manager = SyscallManager()
+        self.syscall_manager.load_type_json("C:\\Users\\hj351\\OneDrive\\문서\\work\\NtMutator\\type.json") # 수정
+
+        # 그런 다음 fuzzing state logic 초기화
         self.logic = FuzzingStateLogic(self, config)
         self.bitmap_storage = BitmapStorage(self.config, "main")
 
@@ -58,6 +65,7 @@ class WorkerTask:
     def handle_import(self, msg):
         meta_data = {"state": {"name": "import"}, "id": 0}
         payload = msg["task"]["payload"]
+
         self.q.set_timeout(self.t_hard)
         try:
             self.logic.process_import(payload, meta_data)

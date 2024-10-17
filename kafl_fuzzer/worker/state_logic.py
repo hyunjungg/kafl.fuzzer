@@ -16,6 +16,9 @@ from kafl_fuzzer.technique.redqueen.mod import RedqueenInfoGatherer
 from kafl_fuzzer.technique.redqueen.workdir import RedqueenWorkdir
 from kafl_fuzzer.technique import trim, bitflip, arithmetic, interesting_values, havoc, radamsa
 from kafl_fuzzer.technique import grimoire_mutations as grimoire
+from kafl_fuzzer.worker.mutation_manager import MutationManager, Prog
+
+
 import random
 import json
 #from kafl_fuzzer.technique.trim import perform_trim, perform_center_trim, perform_extend
@@ -23,6 +26,7 @@ import json
 #import kafl_fuzzer.technique.havoc as havoc
 #import kafl_fuzzer.technique.radamsa as radamsa
 #import kafl_fuzzer.technique.interesting_values as interesting_values
+
 
 class FuzzingStateLogic:
     HAVOC_MULTIPLIER = 4
@@ -45,6 +49,8 @@ class FuzzingStateLogic:
         self.stage_info_findings = 0
         self.attention_secs_start = None
         self.attention_execs_start = None
+
+        self.mutation_manager = MutationManager(self.worker.syscall_manager)
 
     def __str__(self):
         return str(self.worker)
@@ -136,14 +142,22 @@ class FuzzingStateLogic:
             info.update(extra_info)
         return info
 
-    def handle_import(self, payload, metadata):
+    def handle_import(self, _prog, metadata):
         # for funky targets, retry seed a couple times to avoid false negatives
         retries = 1
         if self.config.funky:
             retries = 8
 
+        # 이 시점에서 payload는 항상 emtpy
+
+        # MutationManager를 통해 리소스를 생성하는 syscall만 추가
         for _ in range(retries):
-            _, is_new = self.execute(payload, label="import")
+            # 리소스를 생성하는 syscall만 추가
+            prog = Prog()
+            self.worker.mutation_manager.add_call(prog, create_only=True)  # create_only 플래그로 리소스 생성 syscall만 추가
+
+        for _ in range(retries):
+            _, is_new = self.execute(prog, label="import")
             if is_new: break
 
         # Inform user if seed yields no new coverage. This may happen if -ip0 is
@@ -166,26 +180,18 @@ class FuzzingStateLogic:
             for item in data:
                 self.collect_vals(item, val_list)
 
-    def handle_mutate(self, payload, metadata):
-        try:
-            decoded_payload = payload.decode('utf-8') # ISO-8859-1
-            json_data = json.loads(decoded_payload)
-        except json.JSONDecodeError as e:
-            print(f"JSONDecodeError: {str(e)}")
-            return
+    def handle_mutate(self, prog, metadata):
 
-        val_list = []
-        self.collect_vals(json_data, val_list)
+        choice = random.randint(0, 1)
+        if choice == 0:
+            self.mutation_manager.add_call(prog)  # case 0: insert a new syscall
+        elif choice == 1:
+            self.mutation_manager.mutate_arg(prog)  # case 1: mutate one of the arguments
+        elif choice == 2:
+            self.mutation_manager.squash(prog)  # case 2: squash all syscalls
 
-        if val_list:
-            chosen_item = random.choice(val_list)
-            chosen_item['val'] = random.randint(1, 1000000)
 
-            mutated = json.dumps(json_data)
-
-            mutated_binary = mutated.encode('utf-8')
-
-            self.execute(mutated_binary, label="json mutate")
+        self.execute(prog, label="type mutate")
 
 
 
@@ -330,6 +336,11 @@ class FuzzingStateLogic:
 
 
     def execute(self, payload, label=None, extra_info=None):
+
+        if isinstance(payload, Prog):
+            print("[*] prog is instance of payload\n")
+            payload = payload.to_json()
+            payload = json.loads(payload)
 
         self.stage_info_execs += 1
         if label and label != self.stage_info["method"]:

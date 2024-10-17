@@ -33,7 +33,6 @@ class QemuIOException(Exception):
 class qemu:
     payload_header_size = 4 # must correspond to set_payload() and nyx_api.h
 
-
     def __init__(self, pid, config, debug_mode=False, notifiers=True, resume=False):
 
         self.debug_mode = debug_mode
