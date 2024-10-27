@@ -148,13 +148,9 @@ class FuzzingStateLogic:
         if self.config.funky:
             retries = 8
 
-        # 이 시점에서 payload는 항상 emtpy
-
         # MutationManager를 통해 리소스를 생성하는 syscall만 추가
-        for _ in range(retries):
-            # 리소스를 생성하는 syscall만 추가
-            prog = Prog()
-            self.worker.mutation_manager.add_call(prog, create_only=True)  # create_only 플래그로 리소스 생성 syscall만 추가
+        prog = Prog()
+        self.worker.logic.mutation_manager.add_call(prog, create_only=True)  # create_only 플래그로 리소스 생성 syscall만 추가
 
         for _ in range(retries):
             _, is_new = self.execute(prog, label="import")

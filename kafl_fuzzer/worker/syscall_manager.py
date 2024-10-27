@@ -146,10 +146,3 @@ class Syscall:
 
     def add_field(self, field: Field):
         self.args.append(field)
-
-# 프로그램 실행
-syscall_manager = SyscallManager()
-type_json_path = "C:\\Users\\hj351\\OneDrive\\문서\\work\\NtMutator\\type.json"
-syscall_manager.load_type_json(type_json_path)
-
-

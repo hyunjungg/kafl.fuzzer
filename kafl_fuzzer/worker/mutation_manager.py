@@ -1,4 +1,6 @@
 from kafl_fuzzer.common.rand import rand
+from kafl_fuzzer.worker.syscall_manager import Field
+
 
 import random
 import json

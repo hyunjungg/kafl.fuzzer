@@ -50,7 +50,7 @@ class WorkerTask:
 
         # 먼저 syscall manager를 초기화
         self.syscall_manager = SyscallManager()
-        self.syscall_manager.load_type_json("C:\\Users\\hj351\\OneDrive\\문서\\work\\NtMutator\\type.json") # 수정
+        self.syscall_manager.load_type_json("") # 수정
 
         # 그런 다음 fuzzing state logic 초기화
         self.logic = FuzzingStateLogic(self, config)
