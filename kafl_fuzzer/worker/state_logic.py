@@ -332,11 +332,18 @@ class FuzzingStateLogic:
 
 
     def execute(self, payload, label=None, extra_info=None):
-
         if isinstance(payload, Prog):
-            print("[*] prog is instance of payload\n")
+            print("[DEBUG] prog is instance of payload\n")
             payload = payload.to_json()
             payload = json.loads(payload)
+            payload = json.dumps(payload)
+            print("[DEBUG]", payload , "\n")
+
+        else:
+            print("[DEBUG] prog is not instance of payload\n")
+            print("[DEBUG]", payload , "\n")
+
+        payload = payload.encode("utf-8")
 
         self.stage_info_execs += 1
         if label and label != self.stage_info["method"]:
