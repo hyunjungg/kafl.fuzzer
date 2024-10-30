@@ -152,7 +152,7 @@ class Prog:
             # string 임시 처리
             if field.content.type_ == "stringw":
                 return {
-                        "kind": "qword",
+                        "kind": "inptr",
                         "size": 256,
                         "val": {
                             "kind" : "string",
