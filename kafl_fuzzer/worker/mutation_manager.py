@@ -131,12 +131,18 @@ class Prog:
             if field.content and isinstance(field.content, Field) and field.content.type_ == "resource":
                 resource_name = field.content.content  # 예: "h_file"
                 if resource_name in resource_ids:
-                    return {
-                        "kind": "inptr",
-                        "id": resource_ids[resource_name],
-                        "size": field.width if field.width else 0,
-                        "val": 0
-                    }
+                    if field.direction == "in" or "inout":
+                        return {
+                            "kind": "retval",
+                            "id": resource_ids[resource_name],
+                        }
+                    elif field.direction == "out":
+                        return {
+                            "kind": "inptr",
+                            "id": resource_ids[resource_name],
+                            "size": field.width if field.width else 0,
+                            "val": 0
+                        }
                 else : # resource가 생성되지 않은 경우에는 resource_ids 목록에 resource name이 있지 않음
                     return {
                         "kind":"qword",
@@ -152,17 +158,7 @@ class Prog:
             struct_val = []
             for f in field.fields:
                 content_json = self.field_to_json(f.content, resource_ids)
-                if "kind" in content_json and "val" in content_json:
-                    struct_val.append({
-                        "offset": f.offset,
-                        "kind": content_json["kind"],
-                        "val": content_json["val"]
-                    })
-                else:
-                    struct_val.append({
-                        "offset": f.offset,
-                        "val": content_json  # 기본적으로 content_json을 추가
-                    })
+                struct_val.append(content_json)
             return {
                 "kind": "struct",
                 "val": struct_val
