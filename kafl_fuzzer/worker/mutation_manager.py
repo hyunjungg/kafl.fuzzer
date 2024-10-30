@@ -137,6 +137,11 @@ class Prog:
                         "size": field.width if field.width else 0,
                         "val": 0
                     }
+                else : # resource가 생성되지 않은 경우에는 resource_ids 목록에 resource name이 있지 않음
+                    return {
+                        "kind":"qword",
+                        "val" : 0
+                    }
             return {
                 "kind": "inptr",
                 "size": field.width if field.width else 0,
