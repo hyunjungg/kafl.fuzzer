@@ -148,6 +148,17 @@ class Prog:
                         "kind":"qword",
                         "val" : 0
                     }
+                        #string일 경우
+            # string 임시 처리
+            if field.content.type_ == "stringw":
+                return {
+                        "kind": "qword",
+                        "size": 256,
+                        "val": {
+                            "kind" : "string",
+                            "val" : "test"
+                        }
+                }
             return {
                 "kind": "inptr",
                 "size": field.width if field.width else 0,
