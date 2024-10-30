@@ -158,6 +158,7 @@ class Prog:
             struct_val = []
             for f in field.fields:
                 content_json = self.field_to_json(f.content, resource_ids)
+                content_json["offset"] = f.offset
                 struct_val.append(content_json)
             return {
                 "kind": "struct",
