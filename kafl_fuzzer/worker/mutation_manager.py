@@ -127,29 +127,21 @@ class Prog:
             else:
                 content_json = 0
 
-            # 리소스 사용 여부를 content.type에서 확인하고, resource_id를 부여
+            # 리소스 사용 여부 확인
             if field.content and isinstance(field.content, Field) and field.content.type_ == "resource":
-                resource_name = field.content.content  # 예: "h_file"
-                if resource_name in resource_ids:
-                    if field.direction == "in" or "inout":
-                        return {
-                            "kind": "retval",
-                            "id": resource_ids[resource_name],
-                        }
-                    elif field.direction == "out":
-                        return {
-                            "kind": "inptr",
-                            "id": resource_ids[resource_name],
-                            "size": field.width if field.width else 0,
-                            "val": 0
-                        }
-                else : # resource가 생성되지 않은 경우에는 resource_ids 목록에 resource name이 있지 않음
+                if field.direction == "in":
+                    content_json["kind"] = "retval"
+                    return content_json
+                elif field.direction == "out" or "inout":
+                    content_json["kind"] = "inptr"
+                    content_json["size"] = field.width if field.width else 0
+                    return content_json
+                else:
                     return {
-                        "kind":"qword",
-                        "val" : 0
+                        "kind": "qword",
+                        "val": 0
                     }
-                        #string일 경우
-            # string 임시 처리
+            #string일 경우
             if field.content.type_ == "stringw":
                 return {
                         "kind": "inptr",
@@ -159,11 +151,13 @@ class Prog:
                             "val" : "test"
                         }
                 }
+
             return {
                 "kind": "inptr",
                 "size": field.width if field.width else 0,
                 "val": content_json
             }
+
         elif field.type_ == "struct":
             # 구조체 내부 필드를 재귀적으로 처리하고, offset 정보를 포함
             struct_val = []
@@ -175,6 +169,24 @@ class Prog:
                 "kind": "struct",
                 "val": struct_val
             }
+        elif field.type_ == "resource":
+            resource_name = field.rsc_type  # 예: "h_file"
+
+            if isinstance(resource_name, list):
+                resource_names = [res for res in resource_name if res in self.resources]
+                resource_name = random.choice(resource_names)
+
+            if resource_name in resource_ids:
+                return {
+                    "kind" : "retval",
+                    "id" : resource_ids[resource_name],
+                    "val" : 0
+                }
+            else:
+                return {
+                    "kind" : "qword",
+                    "val" : 0
+                }
 
         elif field.type_ == "array":
             # 배열 타입도 각 요소를 재귀적으로 처리
@@ -184,7 +196,13 @@ class Prog:
             # }
 
             return {
-                "kind" : "scalar",
+                "kind" : "qword",
                 "val" : 0
             }
+        elif field.type_ == "funcptr":
+            return {
+                "kind" : "funcptr",
+                "val" : 0
+            }
+
         return {"val": field.value if field.value is not None else 0}

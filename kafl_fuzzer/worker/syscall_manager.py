@@ -21,17 +21,13 @@ class SyscallManager:
         direction = field_json.get("inout")
         has_direction = direction in {"out", "inout"}
         content = None
+        rsc_type = field_json.get("rsc_type")
         fieldcount = field_json.get("fieldcount")
         width = field_json.get("width")
         offset = field_json.get("offset")
         fields = []
 
-        field = Field(name, type_, has_direction, direction, content, fieldcount, width, offset, fields)
-
-        # 리소스가 의존하는 데이터 처리
-        # if isinstance(field_json.get("content"), str):
-        #     resource_name = field_json["content"]
-        #     field.content = self.resources_desc.get(resource_name)
+        field = Field(name, type_, has_direction, direction, content, rsc_type, fieldcount, width, offset, fields)
 
         # content가 dict인 경우, 재귀적으로 파싱
         if isinstance(field_json.get("content"), dict):
@@ -45,8 +41,12 @@ class SyscallManager:
 
         elif type_ == "resource": # resource 타입인 경우
             field.is_resource = True
-            field.content = field_json["content"]
+            field.rsc_type = field_json["rsc_type"]
+            field.rsc_direction = "in"
 
+        elif type_ == "ptr":
+            if field_json.get("content").get("type") == "resource":
+                field.content.rsc_direction = direction
 
         return field
 
@@ -83,26 +83,34 @@ class SyscallManager:
     def process_resource_usage(self):
         for syscall in self.syscalls:
             for field in syscall.args:
-                # 부모 필드의 inout 정보 추출
-                direction = field.direction
-                if field.type_ == "ptr" and isinstance(field.content, Field):
-                    content_field = field.content
-                    if content_field.type_ == "resource":
-                        resource_name = content_field.content
-                        if resource_name:
-                            if isinstance(resource_name, list):
-                                for res in resource_name:
-                                    if res in self.resources_usage_desc:
-                                        if direction == "out":
-                                            self.resources_usage_desc[res]["create"].append(syscall)
-                                        elif direction == "inout" or direction == "in":
-                                            self.resources_usage_desc[res]["use"].append(syscall)
-                            else:
-                                if resource_name in self.resources_usage_desc:
-                                    if direction == "out":
-                                        self.resources_usage_desc[resource_name]["create"].append(syscall)
-                                    elif direction == "inout" or direction == "in":
-                                        self.resources_usage_desc[resource_name]["use"].append(syscall)
+                self.iterate_field(field, syscall)
+
+
+    def iterate_field(self , field, syscall):
+        if field.type_ == "ptr":
+            if isinstance(field.content, Field):
+                self.iterate_field(field.content , syscall)
+
+        elif field.type_ == "struct":
+            for f in field.fields:
+                self.iterate_field(f.content, syscall)
+
+        elif field.type_ == "array":
+            pass # To do
+        elif field.type_ == "resource":
+            if isinstance(field.rsc_type, list):
+                for res in field.rsc_type:
+                    if res in self.resources_usage_desc:
+                        if field.rsc_direction == "in":
+                            self.resources_usage_desc[res]["use"].append(syscall)
+                        else:
+                            self.resources_usage_desc[res]["create"].append(syscall)
+            else:
+                if field.rsc_type in self.resources_usage_desc:
+                    if field.rsc_direction == "in":
+                        self.resources_usage_desc[field.rsc_type]["use"].append(syscall)
+                    else:
+                        self.resources_usage_desc[field.rsc_type]["create"].append(syscall)
 
 
     def load_type_json(self, path: str):
@@ -121,18 +129,20 @@ class SyscallManager:
             self.process_resource_usage()
 
 class Field:
-    def __init__(self, name: str, type_: str, has_direction: bool, direction: str, content, fieldcount, width, offset, fields):
+    def __init__(self, name: str, type_: str, has_direction: bool, direction: str, content, rsc_type, fieldcount, width, offset, fields):
         self.name = name
         self.type_ = type_
         self.has_direction = has_direction
         self.direction = direction
         self.content = content
+        self.rsc_type = rsc_type
         self.value = None
         self.fieldcount = fieldcount
         self.width = width
         self.offset = offset
         self.fields = fields if fields else []
-        self.is_resource = False # not used yet
+        self.is_resource = False
+        self.rsc_direction = None
 
 class Syscall:
     def __init__(self, sysnum: int, argnum: int, call_name: str, args: list = None, creates_resources: list = None, uses_resources: list = None):
