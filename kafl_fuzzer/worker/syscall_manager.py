@@ -38,6 +38,7 @@ class SyscallManager:
 
         if type_ == "array" :
             size_info = field_json.get("size")
+            size_info["width"] = field_json.get("width")
 
             if size_info["kind"] == "argfield":
                 field.is_size_dependent = True

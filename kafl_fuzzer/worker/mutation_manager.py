@@ -40,10 +40,6 @@ class MutationManager:
 
         prog.calls.append(new_call)
 
-        # To Do : new_call value 세팅 추가
-
-
-
     def mutate_arg(self, prog):
         if not prog.calls:
             return
@@ -197,20 +193,24 @@ class Prog:
                 }
 
         elif field.type_ == "array":
+
             array_size = 0
             if field.is_size_dependent == True :
                 array_size = field.size_reference_field.value
+
             else :
                 if field.array_size_info.get("kind") == "fixed":
                     array_size = field.array_size_info.get("val")
                 elif field.array_size_info.get("kind") == "unknown":
                     array_size = 1
 
+            width = field.array_size_info.get("width")
             count = 0
             if field.countkind == "elem" :
                 count = array_size
             if field.countkind == "byte" :
-                count = array_size // field.width
+
+                count = array_size // width
 
             struct_val_list = list()
             for i in range(count):
@@ -218,18 +218,16 @@ class Prog:
                 array_elem["offset"] = i * field.content.width
                 struct_val_list.append(array_elem)
 
-            field.width = count * field.width
+            field.width = count * width
             return {
                 "kind" : "struct",
                 "val" : struct_val_list
             }
-
         elif field.type_ == "funcptr":
             field.width = 8
             return {
                 "kind" : "funcptr",
                 "val" : 0
             }
-
 
         return {"val": field.value if field.value is not None else 0}
