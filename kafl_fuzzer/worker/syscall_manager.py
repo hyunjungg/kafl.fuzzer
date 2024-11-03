@@ -1,5 +1,5 @@
 import json
-import re
+import random
 
 class SyscallManager:
     def __init__(self):
@@ -24,7 +24,7 @@ class SyscallManager:
         content = None
         rsc_type = field_json.get("rsc_type")
         fieldcount = field_json.get("fieldcount")
-        width = field_json.get("width",0)
+        width = field_json.get("width", 0)
         offset = field_json.get("offset")
         fields = []
         countkind = field_json.get("countkind")
@@ -75,7 +75,7 @@ class SyscallManager:
                 field.content.rsc_direction = direction
 
         elif type_ == "scalar":
-            field.value = 0
+            field.value = random.randint(1, (2 ** (field.width)) - 1)
 
 
         return field

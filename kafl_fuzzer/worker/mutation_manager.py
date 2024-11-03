@@ -45,38 +45,29 @@ class MutationManager:
 
 
     def mutate_arg(self, prog):
-        """argument를 mutation"""
         if not prog.calls:
-            return  # syscalls가 비어있는 경우 함수 종료
-
-        # Step 1: prog.syscalls 리스트에서 무작위로 하나의 syscall 선택
+            return
         chosen_syscall = random.choice(prog.calls)
-        print(chosen_syscall.call_name)
 
-        if not chosen_syscall.args:
-            return  # args가 비어있는 경우 함수 종료
-
-        # Step 2: args 중 무작위로 하나 선택 후 mutation
         chosen_arg = random.choice(chosen_syscall.args)
-        print(chosen_arg.name)
         self._mutate_field(chosen_arg)
 
+
     def _mutate_field(self, field):
-        """Field를 mutation (재귀적으로 필드 내부에서 선택)"""
         if field.type_ == "scalar" and field.width:
-            # scalar 타입일 경우 width에 따라 값 변형
-            field.value = random.randint(0, (2 ** (field.width * 8)) - 1)
+            field.value = random.randint(0, (2 ** (field.width * 4)) - 1)
 
         elif field.type_ == "ptr" and field.content:
-            # ptr 타입일 경우 content 필드를 재귀적으로 처리
             self._mutate_field(field.content)
 
         elif field.type_ == "struct" and field.fields:
-            # struct 타입일 경우 필드 중 하나를 무작위로 선택해 재귀적으로 처리
-            struct_field = random.choice(field.fields)
-            self._mutate_field(struct_field.content)
+            chosen_field = random.choice(field.fields)
+            self._mutate_field(chosen_field.content)
 
         elif field.type_ == "array" and field.content:
+            self._mutate_field(field.content)
+
+        else:
             pass
 
     def squash(self, prog):
@@ -206,10 +197,9 @@ class Prog:
                 }
 
         elif field.type_ == "array":
-
             array_size = 0
             if field.is_size_dependent == True :
-                array_size = field.size_reference_field.width
+                array_size = field.size_reference_field.value
             else :
                 if field.array_size_info.get("kind") == "fixed":
                     array_size = field.array_size_info.get("val")

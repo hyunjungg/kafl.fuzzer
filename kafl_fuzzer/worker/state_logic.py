@@ -20,7 +20,6 @@ from kafl_fuzzer.worker.mutation_manager import MutationManager, Prog
 
 
 import random
-import json
 #from kafl_fuzzer.technique.trim import perform_trim, perform_center_trim, perform_extend
 #import kafl_fuzzer.technique.bitflip as bitflip
 #import kafl_fuzzer.technique.havoc as havoc
@@ -332,18 +331,6 @@ class FuzzingStateLogic:
 
 
     def execute(self, payload, label=None, extra_info=None):
-        if isinstance(payload, Prog):
-            print("[DEBUG] prog is instance of payload\n")
-            payload = payload.to_json()
-            payload = json.loads(payload)
-            payload = json.dumps(payload)
-            print("[DEBUG]", payload , "\n")
-
-        else:
-            print("[DEBUG] prog is not instance of payload\n")
-            print("[DEBUG]", payload , "\n")
-
-        payload = payload.encode("utf-8")
 
         self.stage_info_execs += 1
         if label and label != self.stage_info["method"]:
