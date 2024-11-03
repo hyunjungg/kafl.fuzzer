@@ -23,7 +23,7 @@ class SyscallManager:
         content = None
         rsc_type = field_json.get("rsc_type")
         fieldcount = field_json.get("fieldcount")
-        width = field_json.get("width")
+        width = field_json.get("width",0)
         offset = field_json.get("offset")
         fields = []
         countkind = field_json.get("countkind")
@@ -46,6 +46,7 @@ class SyscallManager:
             field.rsc_direction = "in"
 
         elif type_ == "ptr":
+            field.width = 8
             if field_json.get("content").get("type") == "resource":
                 field.content.rsc_direction = direction
 
@@ -130,7 +131,7 @@ class SyscallManager:
             self.process_resource_usage()
 
 class Field:
-    def __init__(self, syscall, name: str, type_: str, has_direction: bool, direction: str, content, rsc_type, fieldcount, width, offset, fields):
+    def __init__(self, syscall, name: str, type_: str, has_direction: bool, direction: str, content, rsc_type, fieldcount, width, offset, fields, countkind):
         self.syscall = syscall
         self.name = name
         self.type_ = type_

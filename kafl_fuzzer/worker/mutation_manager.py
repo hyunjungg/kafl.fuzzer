@@ -129,12 +129,12 @@ class Prog:
 
             # 리소스 사용 여부 확인
             if field.content and isinstance(field.content, Field) and field.content.type_ == "resource":
+                field.width = field.content.width
                 if field.direction == "in":
                     content_json["kind"] = "retval"
                     return content_json
                 elif field.direction == "out" or "inout":
                     content_json["kind"] = "inptr"
-                    content_json["size"] = field.width if field.width else 0
                     return content_json
                 else:
                     return {
@@ -154,21 +154,25 @@ class Prog:
 
             return {
                 "kind": "inptr",
-                "size": field.width if field.width else 0,
+                "size": field.content.width,
                 "val": content_json
             }
 
         elif field.type_ == "struct":
             # 구조체 내부 필드를 재귀적으로 처리하고, offset 정보를 포함
             struct_val = []
+            field_size = 0
             for f in field.fields:
                 content_json = self.field_to_json(f.content, resource_ids)
                 content_json["offset"] = f.offset
+                field_size += f.content.width
                 struct_val.append(content_json)
+            field.width = field_size
             return {
                 "kind": "struct",
                 "val": struct_val
             }
+
         elif field.type_ == "resource":
             resource_name = field.rsc_type  # 예: "h_file"
 
@@ -177,10 +181,12 @@ class Prog:
                 resource_name = random.choice(resource_names)
 
             if resource_name in resource_ids:
+                field.width = self.resources[resource_name].width
                 return {
                     "kind" : "retval",
                     "id" : resource_ids[resource_name],
-                    "val" : 0
+                    "val" : 0,
+                    "size" : self.resources[resource_name].width
                 }
             else:
                 return {
@@ -194,15 +200,18 @@ class Prog:
             #     "kind": "struct",
             #     "val": [self.field_to_json(f, resource_ids) for f in field.content]
             # }
+            field.width = 1
 
             return {
                 "kind" : "qword",
                 "val" : 0
             }
         elif field.type_ == "funcptr":
+            field.width = 8
             return {
                 "kind" : "funcptr",
                 "val" : 0
             }
+
 
         return {"val": field.value if field.value is not None else 0}
