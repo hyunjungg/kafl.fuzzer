@@ -15,7 +15,7 @@ class SyscallManager:
     def get_resource_use_syscalls(self, resource_name):
         return self.resources_usage_desc[resource_name]["use"]
 
-    def parse_field(self, name: str, field_json: dict) -> 'Field':
+    def parse_field(self, syscall, arg_name: str, field_json: dict) -> 'Field':
         """필드 데이터를 파싱하여 Field 객체로 변환"""
         type_ = field_json.get("type")
         direction = field_json.get("inout")
@@ -26,16 +26,17 @@ class SyscallManager:
         width = field_json.get("width")
         offset = field_json.get("offset")
         fields = []
+        countkind = field_json.get("countkind")
 
-        field = Field(name, type_, has_direction, direction, content, rsc_type, fieldcount, width, offset, fields)
+        field = Field(syscall, arg_name, type_, has_direction, direction, content, rsc_type, fieldcount, width, offset, fields, countkind)
 
         # content가 dict인 경우, 재귀적으로 파싱
         if isinstance(field_json.get("content"), dict):
-            field.content = self.parse_field(name, field_json["content"])
+            field.content = self.parse_field(syscall, arg_name, field_json["content"])
 
         if type_ == "struct": # struct 타입인 경우 필드들의 리스트 파싱
             for field_index_json in field_json["fields"]:
-                struct_field = self.parse_field(name, field_index_json)
+                struct_field = self.parse_field(syscall, arg_name, field_index_json)
                 struct_field.offset = field_index_json["offset"]
                 field.fields.append(struct_field)
 
@@ -64,7 +65,7 @@ class SyscallManager:
                 for i in range(1, argnum + 1):
                     arg_name = f"arg{i}"
                     if arg_name in syscall_value:
-                        field = self.parse_field(arg_name, syscall_value[arg_name])
+                        field = self.parse_field(syscall, arg_name, syscall_value[arg_name])
                         syscall.add_field(field)
 
                 # 파싱된 syscall 객체를 리스트에 추가
@@ -76,7 +77,7 @@ class SyscallManager:
 
         """리소스를 파싱하여 Field 객체로 변환 및 저장"""
         for resource_name, resource_desc in type_json["resources"].items():
-            self.resources_desc[resource_name] = self.parse_field(None, resource_desc)
+            self.resources_desc[resource_name] = self.parse_field(None, None, resource_desc)
 
         self.resources_usage_desc = {key: {"create": [], "use": []} for key in self.resources_desc}
 
@@ -129,7 +130,8 @@ class SyscallManager:
             self.process_resource_usage()
 
 class Field:
-    def __init__(self, name: str, type_: str, has_direction: bool, direction: str, content, rsc_type, fieldcount, width, offset, fields):
+    def __init__(self, syscall, name: str, type_: str, has_direction: bool, direction: str, content, rsc_type, fieldcount, width, offset, fields):
+        self.syscall = syscall
         self.name = name
         self.type_ = type_
         self.has_direction = has_direction
@@ -143,6 +145,11 @@ class Field:
         self.fields = fields if fields else []
         self.is_resource = False
         self.rsc_direction = None
+        self.countkind = countkind
+        self.syscall = None # 필드가 속한 시스템 호출 객체를 저장
+        self.struct_parent = None # 필드가 속한 구조체 객체를 저장
+        self.is_size_dependent = False # array 일때, 크기가 동적으로 결정되는 경우 True
+        self.size_reference_field = None # array 일때, 크기를 결정하는 필드의 객체를 저장
 
 class Syscall:
     def __init__(self, sysnum: int, argnum: int, call_name: str, args: list = None, creates_resources: list = None, uses_resources: list = None):
