@@ -22,17 +22,20 @@ class MutationManager:
             if resource not in prog.resources:
                 prog.resources[resource] = resources[resource]
         else:
-            # 리소스를 생성하거나 사용하는 syscall 랜덤 선택
-            # if random.randint(0, 1) == 0:
-            #     resources = self.syscall_manager.get_resources_desc()
-            #     random_resource = random.choice(list(resources.keys()))
-            #     resource_creating_syscalls = self.syscall_manager.get_resource_creating_syscalls(random_resource)
-            #     new_call = random.choice(resource_creating_syscalls)  # 무작위로 syscall 선택
-            # else:
-            #     new_call = self.syscall_manager.get_resource_using_syscall(prog.resources)
-            resource = random.choice(list(prog.resources.keys()))
-            resource_using_syscalls = self.syscall_manager.get_resource_use_syscalls(resource)
-            new_call = random.choice(resource_using_syscalls)
+            rand_num = random.randint(0, 99)
+
+            if rand_num < 40: # resource create
+                resources = self.syscall_manager.get_resources_desc()
+                resource = random.choice(list(resources.keys()))
+                resource_creating_syscalls = self.syscall_manager.get_resource_create_syscalls(resource)
+                new_call = random.choice(resource_creating_syscalls)  # 무작위로 syscall 선택
+
+                if resource not in prog.resources:
+                    prog.resources[resource] = resources[resource]
+            else: # resource use
+                resource = random.choice(list(prog.resources.keys()))
+                resource_using_syscalls = self.syscall_manager.get_resource_use_syscalls(resource)
+                new_call = random.choice(resource_using_syscalls)
 
 
         prog.calls.append(new_call)
@@ -206,7 +209,6 @@ class Prog:
 
             array_size = 0
             if field.is_size_dependent == True :
-                print(field.size_reference_field.type_)
                 array_size = field.size_reference_field.width
             else :
                 if field.array_size_info.get("kind") == "fixed":

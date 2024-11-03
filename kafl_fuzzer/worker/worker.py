@@ -356,16 +356,13 @@ class WorkerTask:
 
         data = None
         if isinstance(prog, Prog):
-            print("[DEBUG] prog is instance of payload\n")
             data = prog.to_json()
             data = json.loads(data)
             data = json.dumps(data)
             print("[DEBUG]", data , "\n")
 
         else:
-            print("[DEBUG] prog is not instance of payload\n")
             data = prog
-            print("[DEBUG]", data , "\n")
 
         data = data.encode("utf-8")
 
