@@ -1,4 +1,5 @@
 import json
+import re
 
 class SyscallManager:
     def __init__(self):
@@ -34,10 +35,33 @@ class SyscallManager:
         if isinstance(field_json.get("content"), dict):
             field.content = self.parse_field(syscall, arg_name, field_json["content"])
 
+
+        if type_ == "array" :
+            size_info = field_json.get("size")
+
+            if size_info["kind"] == "argfield":
+                field.is_size_dependent = True
+                field.array_size_info = size_info
+
+            elif size_info["kind"] == "adjacentfield":
+                field.is_size_dependent = True
+                offset = size_info["offsets"]
+                field.array_size_info = size_info
+
+            elif size_info["kind"] == "fixed":
+                field.array_size_info = size_info
+
+            elif size_info["kind"] == "unknown":
+                field.array_size_info = size_info
+
+            else:
+                print(f"[!] not supported array type {size_info['kind']}\n")
+
+
         if type_ == "struct": # struct 타입인 경우 필드들의 리스트 파싱
             for field_index_json in field_json["fields"]:
                 struct_field = self.parse_field(syscall, arg_name, field_index_json)
-                struct_field.offset = field_index_json["offset"]
+                struct_field.content.struct_parent = field
                 field.fields.append(struct_field)
 
         elif type_ == "resource": # resource 타입인 경우
@@ -49,6 +73,10 @@ class SyscallManager:
             field.width = 8
             if field_json.get("content").get("type") == "resource":
                 field.content.rsc_direction = direction
+
+        elif type_ == "scalar":
+            field.value = 0
+
 
         return field
 
@@ -85,20 +113,65 @@ class SyscallManager:
     def process_resource_usage(self):
         for syscall in self.syscalls:
             for field in syscall.args:
-                self.iterate_field(field, syscall)
+                self.iterate_field_for_resource(field, syscall)
 
+    def find_field_by_arg_name(self, syscall, idx):
+        return syscall.args[idx]
 
-    def iterate_field(self , field, syscall):
+    def find_field_by_parent_struct(self, struct_parent, offset):
+        offset = offset[0]
+        for field in struct_parent.fields:
+            if field.offset == offset:
+                return field.content
+        return None
+
+    def iterate_field_for_array(self , field, syscall):
+
+        if field.is_size_dependent == True :
+            kind = field.array_size_info.get("kind")
+            idx = field.array_size_info.get("idx")
+            offset = field.array_size_info.get("offsets")
+
+            if kind == "argfield":
+                field.size_reference_field = self.find_field_by_arg_name(field.syscall, idx)
+
+            if kind == "adjacentfield":
+                field.size_reference_field = self.find_field_by_parent_struct(field.struct_parent, offset)
+
         if field.type_ == "ptr":
             if isinstance(field.content, Field):
-                self.iterate_field(field.content , syscall)
+                self.iterate_field_for_array(field.content , syscall)
 
         elif field.type_ == "struct":
             for f in field.fields:
-                self.iterate_field(f.content, syscall)
+                self.iterate_field_for_array(f.content, syscall)
 
         elif field.type_ == "array":
-            pass # To do
+            if isinstance(field.content, Field):
+                self.iterate_field_for_array(field.content , syscall)
+
+        elif field.type_ == "resource":
+            pass
+
+    def set_array_size_reference_field(self):
+        for syscall in self.syscalls:
+            for field in syscall.args:
+                self.iterate_field_for_array(field, syscall)
+
+
+    def iterate_field_for_resource(self , field, syscall):
+        if field.type_ == "ptr":
+            if isinstance(field.content, Field):
+                self.iterate_field_for_resource(field.content , syscall)
+
+        elif field.type_ == "struct":
+            for f in field.fields:
+                self.iterate_field_for_resource(f.content, syscall)
+
+        elif field.type_ == "array":
+            if isinstance(field.content, Field):
+                self.iterate_field_for_resource(field.content , syscall)
+
         elif field.type_ == "resource":
             if isinstance(field.rsc_type, list):
                 for res in field.rsc_type:
@@ -130,6 +203,9 @@ class SyscallManager:
             # 리소스 사용 정보 update
             self.process_resource_usage()
 
+            # array의 size 정보 update
+            self.set_array_size_reference_field()
+
 class Field:
     def __init__(self, syscall, name: str, type_: str, has_direction: bool, direction: str, content, rsc_type, fieldcount, width, offset, fields, countkind):
         self.syscall = syscall
@@ -147,7 +223,6 @@ class Field:
         self.is_resource = False
         self.rsc_direction = None
         self.countkind = countkind
-        self.syscall = None # 필드가 속한 시스템 호출 객체를 저장
         self.struct_parent = None # 필드가 속한 구조체 객체를 저장
         self.is_size_dependent = False # array 일때, 크기가 동적으로 결정되는 경우 True
         self.size_reference_field = None # array 일때, 크기를 결정하는 필드의 객체를 저장

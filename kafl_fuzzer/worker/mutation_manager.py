@@ -195,17 +195,35 @@ class Prog:
                 }
 
         elif field.type_ == "array":
-            # 배열 타입도 각 요소를 재귀적으로 처리
-            # return {
-            #     "kind": "struct",
-            #     "val": [self.field_to_json(f, resource_ids) for f in field.content]
-            # }
-            field.width = 1
 
+            array_size = 0
+            if field.is_size_dependent == True :
+                print(field.size_reference_field.type_)
+                array_size = field.size_reference_field.width
+            else :
+                if field.array_size_info.get("kind") == "fixed":
+                    array_size = field.array_size_info.get("val")
+                elif field.array_size_info.get("kind") == "unknown":
+                    array_size = 1
+
+            count = 0
+            if field.countkind == "elem" :
+                count = array_size
+            if field.countkind == "byte" :
+                count = array_size // field.width
+
+            struct_val_list = list()
+            for i in range(count):
+                array_elem = self.field_to_json(field.content, resource_ids)
+                array_elem["offset"] = i * field.content.width
+                struct_val_list.append(array_elem)
+
+            field.width = count * field.width
             return {
-                "kind" : "qword",
-                "val" : 0
+                "kind" : "struct",
+                "val" : struct_val_list
             }
+
         elif field.type_ == "funcptr":
             field.width = 8
             return {
