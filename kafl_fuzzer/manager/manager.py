@@ -17,7 +17,6 @@ import logging
 import mmh3
 import shutil
 import lz4.frame as lz4
-import pickle
 
 from kafl_fuzzer.common.config import dump_config
 from kafl_fuzzer.common.util import read_binary_file
@@ -29,7 +28,6 @@ from kafl_fuzzer.manager.bitmap import BitmapStorage
 from kafl_fuzzer.manager.node import QueueNode
 from kafl_fuzzer.technique.redqueen.cmp import redqueen_global_config
 from kafl_fuzzer.worker.execution_result import ExecutionResult
-from kafl_fuzzer.worker.syscall_manager import *
 
 from kafl_fuzzer.technique.helper import helper_init
 
@@ -147,7 +145,6 @@ class ManagerTask:
             os.remove(tmp_trace)
 
     def maybe_insert_node(self, payload, bitmap_array, info):
-        payload = pickle.loads(payload)
         bitmap = ExecutionResult.bitmap_from_bytearray(bitmap_array,
                                                        info["exit_reason"],
                                                        info["performance"])
