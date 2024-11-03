@@ -101,7 +101,7 @@ class WorkerTask:
 
         try:
 
-            results, new_payload = self.logic.process_node(pickle.loads(payload), meta_data)
+            results, new_payload = self.logic.process_node(payload, meta_data)
         except QemuIOException:
             # mark node as crashing and free it before escalating
             self.logger.info("Qemu execution failed for node %d." % meta_data["id"])

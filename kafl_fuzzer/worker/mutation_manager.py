@@ -86,6 +86,12 @@ class Prog:
     def __init__(self):
         self.resources = {}  # 사용된 리소스 저장
         self.calls = []  # 추가된 syscall 리스트
+        self.json_len = 0
+
+    def __len__(self):
+        if self.json_len == 0:
+            self.json_len = 3000
+        return self.json_len
 
 
     def to_json(self):
@@ -104,7 +110,9 @@ class Prog:
             for i, arg in enumerate(call.args, start=1):
                 call_json[f"arg{i}"] = self.field_to_json(arg, resource_ids)
             test_case.append(call_json)
-        return json.dumps(test_case, indent=2)
+        result = json.dumps(test_case, indent=2)
+        self.json_len = len(result)
+        return result
 
     def field_to_json(self, field, resource_ids):
         """각 Field 객체를 JSON으로 변환 (재귀 처리)"""
