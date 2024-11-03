@@ -17,7 +17,10 @@ import sys
 import shutil
 import tempfile
 import logging
+import json
+import pickle
 import lz4.frame as lz4
+from kafl_fuzzer.worker.mutation_manager import *
 
 #from kafl_fuzzer.common.config import FuzzerConfiguration
 from kafl_fuzzer.common.rand import rand
@@ -97,7 +100,8 @@ class WorkerTask:
         self.q.set_timeout(min(self.t_hard, t_dyn))
 
         try:
-            results, new_payload = self.logic.process_node(payload, meta_data)
+
+            results, new_payload = self.logic.process_node(pickle.loads(payload), meta_data)
         except QemuIOException:
             # mark node as crashing and free it before escalating
             self.logger.info("Qemu execution failed for node %d." % meta_data["id"])
@@ -348,9 +352,25 @@ class WorkerTask:
         return self.__execute(data, retry=retry+1)
 
 
-    def execute(self, data, info, hard_timeout=False):
+    def execute(self, prog, info, hard_timeout=False):
+
+        data = None
+        if isinstance(prog, Prog):
+            print("[DEBUG] prog is instance of payload\n")
+            data = prog.to_json()
+            data = json.loads(data)
+            data = json.dumps(data)
+            print("[DEBUG]", data , "\n")
+
+        else:
+            print("[DEBUG] prog is not instance of payload\n")
+            data = prog
+            print("[DEBUG]", data , "\n")
+
+        data = data.encode("utf-8")
 
         if len(data) > self.payload_limit:
+            print(f"[DEBUG] Data exceeds payload limit ({len(data)} > {self.payload_limit}) \n")
             data = data[:self.payload_limit]
 
         exec_res = self.__execute(data)
@@ -395,7 +415,7 @@ class WorkerTask:
                     dyn_timeout = self.q.get_timeout()
                     self.q.set_timeout(self.t_hard)
                     # if still new, register the payload as regular or (true) timeout
-                    exec_res, is_new = self.execute(data, info, hard_timeout=True)
+                    exec_res, is_new = self.execute(prog, info, hard_timeout=True)
                     self.q.set_timeout(dyn_timeout)
                     if is_new and exec_res.exit_reason != "timeout":
                         self.logger.debug("Timeout checker found non-timeout with runtime %f >= %f!" % (exec_res.performance, dyn_timeout))
@@ -410,7 +430,7 @@ class WorkerTask:
                 self.q.store_crashlogs(exec_res.exit_reason, exec_res.hash())
 
             if crash or stable:
-                self.__send_to_manager(data, exec_res, info)
+                self.__send_to_manager(prog, exec_res, info)
 
         # restart Qemu on crash
         if crash:

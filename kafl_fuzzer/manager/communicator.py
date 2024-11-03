@@ -11,7 +11,9 @@ import select
 
 import logging
 import msgpack
+import pickle
 from multiprocessing.connection import Listener, Client
+from kafl_fuzzer.worker.syscall_manager import *
 
 MSG_READY = 0
 MSG_IMPORT = 1
@@ -81,8 +83,11 @@ class ClientConnection:
         self.sock.send_bytes(msgpack.packb({"type": MSG_READY, "worker_id": self.pid}))
 
     def send_new_input(self, data, bitmap, info):
+
+        payload = pickle.dumps(data)
+
         self.sock.send_bytes(msgpack.packb(
-            {"type": MSG_NEW_INPUT, "input": {"payload": data, "bitmap": bitmap, "info": info}}))
+            {"type": MSG_NEW_INPUT, "input": {"payload": payload, "bitmap": bitmap, "info": info}}))
 
     def send_node_done(self, node_id, results, new_payload):
         self.sock.send_bytes(msgpack.packb(
