@@ -129,8 +129,11 @@ class Prog:
             if field.content and isinstance(field.content, Field) and field.content.type_ == "resource":
                 field.width = field.content.width
                 if field.direction == "in":
-                    content_json["kind"] = "retval"
-                    return content_json
+                     return {
+                        "kind": "inptr",
+                        "size": field.content.width,
+                        "val": content_json
+                    }
                 elif field.direction == "out" or "inout":
                     content_json["kind"] = "inptr"
                     return content_json
@@ -139,6 +142,7 @@ class Prog:
                         "kind": "qword",
                         "val": 0
                     }
+
             #string일 경우
             if field.content.type_ == "stringw":
                 return {
