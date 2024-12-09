@@ -90,9 +90,9 @@ class FuzzingStateLogic:
 
         return ret
 
-    def process_import(self, payload, metadata):
+    def process_initial(self, payload, metadata):
         self.init_stage_info(metadata)
-        self.handle_import(payload, metadata)
+        self.handle_initial(payload, metadata)
 
     def process_kickstart(self, kick_len):
         metadata = {"state": {"name": "kickstart"}, "id": 0}
@@ -141,7 +141,7 @@ class FuzzingStateLogic:
             info.update(extra_info)
         return info
 
-    def handle_import(self, _prog, metadata):
+    def handle_initial(self, _prog, metadata):
         # for funky targets, retry seed a couple times to avoid false negatives
         retries = 1
         if self.config.funky:
@@ -177,13 +177,13 @@ class FuzzingStateLogic:
 
     def handle_mutate(self, prog, metadata):
 
-        choice = random.randint(0, 1)
+        choice = random.randint(0, 2)
         if choice == 0:
             self.mutation_manager.add_call(prog)  # case 0: insert a new syscall
         elif choice == 1:
             self.mutation_manager.mutate_arg(prog)  # case 1: mutate one of the arguments
         elif choice == 2:
-            self.mutation_manager.squash(prog)  # case 2: squash all syscalls
+            self.mutation_manager.insert(prog)  # case 2: insert
 
 
         self.execute(prog, label="type mutate")

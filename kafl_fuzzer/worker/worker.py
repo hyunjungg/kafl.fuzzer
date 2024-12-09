@@ -53,7 +53,7 @@ class WorkerTask:
 
         # 먼저 syscall manager를 초기화
         self.syscall_manager = SyscallManager()
-        self.syscall_manager.load_type_json("") # 수정
+        self.syscall_manager.parse_type_json("/home/hj/kAFL/kafl/examples/windows_x86_64/type/type.json") # 수정
 
         # 그런 다음 fuzzing state logic 초기화
         self.logic = FuzzingStateLogic(self, config)
@@ -65,13 +65,13 @@ class WorkerTask:
         self.t_check = config.timeout_check
         self.num_funky = 0
 
-    def handle_import(self, msg):
+    def handle_initial(self, msg):
         meta_data = {"state": {"name": "import"}, "id": 0}
         payload = msg["task"]["payload"]
 
         self.q.set_timeout(self.t_hard)
         try:
-            self.logic.process_import(payload, meta_data)
+            self.logic.process_initial(payload, meta_data)
         except QemuIOException:
             self.logger.warn("Execution failure on import.")
             self.conn.send_node_abort(None, None)
@@ -166,7 +166,7 @@ class WorkerTask:
             if msg["type"] == MSG_RUN_NODE:
                 self.handle_node(msg)
             elif msg["type"] == MSG_IMPORT:
-                self.handle_import(msg)
+                self.handle_initial(msg)
             elif msg["type"] == MSG_BUSY:
                 self.handle_busy()
             else:
@@ -356,7 +356,7 @@ class WorkerTask:
 
         data = None
         if isinstance(prog, Prog):
-            data = prog.to_json()
+            data = prog.to_testcase()
             data = json.loads(data)
             data = json.dumps(data)
             print("[DEBUG]", data , "\n")
